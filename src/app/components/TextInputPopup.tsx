@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
 interface TextInputPopupProps {
@@ -35,40 +35,38 @@ export function TextInputPopup({ isOpen, onClose, onAnalyze }: TextInputPopupPro
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 px-4 py-5 sm:p-8"
       onClick={handleClickOutside}
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-3xl p-8 max-w-4xl w-full relative"
+        className="relative my-auto max-h-[calc(100vh-2.5rem)] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-5 sm:max-h-[calc(100vh-4rem)] sm:p-8"
       >
-        {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-gray-100 sm:right-6 sm:top-6"
+          aria-label="닫기"
         >
-          <X className="w-6 h-6 text-gray-600" />
+          <X className="h-6 w-6 text-gray-600" />
         </button>
 
-        {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <div className="mb-5 pr-10 sm:mb-6">
+          <h2 className="mb-2 text-xl font-bold text-gray-900 sm:text-2xl">
             문제와 해설 입력
           </h2>
-          <p className="text-base text-gray-600">
+          <p className="text-sm text-gray-600 sm:text-base">
             이해가 안 되는 문제와 해설을 텍스트로 입력하세요
           </p>
         </div>
 
-        {/* School Level Selector */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <div className="mb-5 sm:mb-6">
+          <label className="mb-2 block text-sm font-semibold text-gray-700">
             학년 선택 <span className="text-red-500">*</span>
           </label>
           <select
             value={schoolLevel}
             onChange={(e) => setSchoolLevel(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#5C6BC0] focus:outline-none text-base"
+            className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-base focus:border-[#5C6BC0] focus:outline-none"
           >
             <option value="">학년을 선택하세요</option>
             {SCHOOL_LEVELS.map(level => (
@@ -77,45 +75,41 @@ export function TextInputPopup({ isOpen, onClose, onAnalyze }: TextInputPopupPro
           </select>
         </div>
 
-        {/* Input Boxes */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-          {/* Problem Input */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <div className="mb-6 grid grid-cols-1 gap-5 sm:mb-8 sm:grid-cols-2 sm:gap-6">
+          <div className="min-w-0">
+            <label className="mb-2 block text-sm font-semibold text-gray-700 sm:mb-3">
               문제 입력
             </label>
             <textarea
               value={problem}
               onChange={(e) => setProblem(e.target.value)}
               placeholder="문제를 입력하세요..."
-              className="w-full h-64 px-5 py-4 border-2 border-gray-200 rounded-2xl focus:border-[#5C6BC0] focus:outline-none resize-none text-base"
+              className="h-40 w-full resize-none rounded-2xl border-2 border-gray-200 px-4 py-3 text-base focus:border-[#5C6BC0] focus:outline-none sm:h-64 sm:px-5 sm:py-4"
             />
           </div>
 
-          {/* Solution Input */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
+          <div className="min-w-0">
+            <label className="mb-2 block text-sm font-semibold text-gray-700 sm:mb-3">
               해설 입력
             </label>
             <textarea
               value={solution}
               onChange={(e) => setSolution(e.target.value)}
               placeholder="해설을 입력하세요..."
-              className="w-full h-64 px-5 py-4 border-2 border-gray-200 rounded-2xl focus:border-[#5C6BC0] focus:outline-none resize-none text-base"
+              className="h-40 w-full resize-none rounded-2xl border-2 border-gray-200 px-4 py-3 text-base focus:border-[#5C6BC0] focus:outline-none sm:h-64 sm:px-5 sm:py-4"
             />
           </div>
         </div>
 
-        {/* Analyze Button */}
         <button
           onClick={handleAnalyze}
           disabled={(!problem.trim() && !solution.trim()) || !schoolLevel}
-          className="w-full px-8 py-4 bg-[#5C6BC0] hover:bg-[#4E5BAD] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-lg font-semibold rounded-2xl transition-colors shadow-lg shadow-[#5C6BC0]/30 disabled:shadow-none"
+          className="w-full rounded-2xl bg-[#5C6BC0] px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#5C6BC0]/30 transition-colors hover:bg-[#4E5BAD] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none sm:py-4 sm:text-lg"
         >
           분석하기
         </button>
         {!schoolLevel && (problem.trim() || solution.trim()) && (
-          <p className="text-center text-sm text-red-600 mt-2">
+          <p className="mt-2 text-center text-sm text-red-600">
             학년을 먼저 선택해주세요
           </p>
         )}

@@ -62,8 +62,9 @@ export function Sidebar({ isOpen = true, onClose, forceOverlay = false }: Sideba
 
   return (
     <aside className={`
-      h-full min-h-screen w-[260px] shrink-0 bg-white border-r border-gray-200/50 flex flex-col
+      w-[260px] shrink-0 self-stretch bg-white border-r border-gray-200/50 flex flex-col
       ${forceOverlay ? 'fixed' : 'fixed lg:static'} inset-y-0 left-0 z-40 transition-transform duration-300
+      ${forceOverlay ? 'h-full min-h-screen' : 'min-h-screen lg:min-h-full'}
       ${isOpen ? 'translate-x-0' : forceOverlay ? '-translate-x-full' : '-translate-x-full lg:translate-x-0'}
     `}>
       {/* Mobile close button */}
