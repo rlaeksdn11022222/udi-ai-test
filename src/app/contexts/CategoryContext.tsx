@@ -17,7 +17,6 @@ interface CategoryContextType {
 
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
 
-// Mock initial categories based on user's learning history
 const initialCategories: CategoryMastery[] = [
   {
     id: 'quadratic-formula',
@@ -25,7 +24,7 @@ const initialCategories: CategoryMastery[] = [
     subcategory: '근의 공식',
     masteryPercentage: 75,
     totalQuestions: 12,
-    correctAnswers: 9
+    correctAnswers: 9,
   },
   {
     id: 'quadratic-factoring',
@@ -33,7 +32,7 @@ const initialCategories: CategoryMastery[] = [
     subcategory: '인수분해',
     masteryPercentage: 60,
     totalQuestions: 10,
-    correctAnswers: 6
+    correctAnswers: 6,
   },
   {
     id: 'discriminant',
@@ -41,15 +40,15 @@ const initialCategories: CategoryMastery[] = [
     subcategory: '판별식',
     masteryPercentage: 85,
     totalQuestions: 8,
-    correctAnswers: 7
+    correctAnswers: 7,
   },
   {
     id: 'sqrt-basic',
     name: '제곱근',
-    subcategory: '루트 기본 연산',
+    subcategory: '루트 기본 계산',
     masteryPercentage: 45,
     totalQuestions: 6,
-    correctAnswers: 3
+    correctAnswers: 3,
   },
   {
     id: 'sqrt-rationalize',
@@ -57,7 +56,7 @@ const initialCategories: CategoryMastery[] = [
     subcategory: '분모의 유리화',
     masteryPercentage: 30,
     totalQuestions: 5,
-    correctAnswers: 2
+    correctAnswers: 2,
   },
   {
     id: 'sequence-general',
@@ -65,7 +64,7 @@ const initialCategories: CategoryMastery[] = [
     subcategory: '일반항 구하기',
     masteryPercentage: 55,
     totalQuestions: 9,
-    correctAnswers: 5
+    correctAnswers: 5,
   },
   {
     id: 'sequence-recursive',
@@ -73,7 +72,7 @@ const initialCategories: CategoryMastery[] = [
     subcategory: '점화식',
     masteryPercentage: 40,
     totalQuestions: 7,
-    correctAnswers: 3
+    correctAnswers: 3,
   },
   {
     id: 'polynomial-expansion',
@@ -81,8 +80,8 @@ const initialCategories: CategoryMastery[] = [
     subcategory: '전개와 인수분해',
     masteryPercentage: 70,
     totalQuestions: 10,
-    correctAnswers: 7
-  }
+    correctAnswers: 7,
+  },
 ];
 
 export function CategoryProvider({ children }: { children: ReactNode }) {
@@ -90,17 +89,17 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
 
   const updateMastery = (categoryId: string, correct: boolean) => {
     setCategories(prev => prev.map(cat => {
-      if (cat.id === categoryId) {
-        const newTotal = cat.totalQuestions + 1;
-        const newCorrect = cat.correctAnswers + (correct ? 1 : 0);
-        return {
-          ...cat,
-          totalQuestions: newTotal,
-          correctAnswers: newCorrect,
-          masteryPercentage: Math.round((newCorrect / newTotal) * 100)
-        };
-      }
-      return cat;
+      if (cat.id !== categoryId) return cat;
+
+      const newTotal = cat.totalQuestions + 1;
+      const newCorrect = cat.correctAnswers + (correct ? 1 : 0);
+
+      return {
+        ...cat,
+        totalQuestions: newTotal,
+        correctAnswers: newCorrect,
+        masteryPercentage: Math.round((newCorrect / newTotal) * 100),
+      };
     }));
   };
 

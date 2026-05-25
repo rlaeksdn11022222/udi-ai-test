@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
 interface User {
   id: string;
@@ -18,6 +18,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (!savedUser) return;
+
+    try {
+      setUser(JSON.parse(savedUser));
+    } catch {
+      localStorage.removeItem('user');
+    }
+  }, []);
 
   const login = (userData: User) => {
     setUser(userData);

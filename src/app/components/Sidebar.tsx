@@ -7,9 +7,10 @@ import { useAuth } from '../contexts/AuthContext';
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
+  forceOverlay?: boolean;
 }
 
-export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
+export function Sidebar({ isOpen = true, onClose, forceOverlay = false }: SidebarProps) {
   const navigate = useNavigate();
   const { conversations, deleteConversation, renameConversation, currentConversation, setCurrentConversation } = useConversation();
   const { isAuthenticated } = useAuth();
@@ -61,9 +62,9 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
   return (
     <aside className={`
-      w-[260px] shrink-0 bg-white border-r border-gray-200/50 flex flex-col
-      fixed lg:static inset-y-0 left-0 z-40 transition-transform duration-300
-      ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      h-full min-h-screen w-[260px] shrink-0 bg-white border-r border-gray-200/50 flex flex-col
+      ${forceOverlay ? 'fixed' : 'fixed lg:static'} inset-y-0 left-0 z-40 transition-transform duration-300
+      ${isOpen ? 'translate-x-0' : forceOverlay ? '-translate-x-full' : '-translate-x-full lg:translate-x-0'}
     `}>
       {/* Mobile close button */}
       {onClose && (
@@ -97,7 +98,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       </div>
 
       {/* Chat History */}
-      <div className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
+      <div className="flex-1 px-3 py-2 space-y-1 overflow-y-auto bg-white">
         {isAuthenticated ? (
           conversations.length > 0 ? (
             conversations.map((conv) => (
@@ -181,7 +182,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       </div>
 
       {/* Support Link */}
-      <div className="p-4 border-t border-gray-200/50">
+      <div className="mt-auto p-4 border-t border-gray-200/50 bg-white">
         <a
           href="#"
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#5C6BC0] transition-colors"
@@ -198,7 +199,8 @@ export function MobileMenuButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+      aria-label="사이드바 열기"
     >
       <Menu className="w-6 h-6 text-gray-700" />
     </button>

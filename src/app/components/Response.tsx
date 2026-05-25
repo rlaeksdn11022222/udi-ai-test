@@ -56,6 +56,15 @@ const renderInlineEmphasis = (line: string) => {
 };
 
 function StructuredExplanation({ text }: { text: string }) {
+  if (!text.trim()) {
+    return (
+      <div className="flex min-h-28 items-center gap-3 rounded-2xl bg-[#F1F1EF] px-5 py-5 text-gray-600">
+        <Loader2 className="h-5 w-5 animate-spin text-[#5C6BC0]" />
+        <p className="text-base font-medium">답변을 준비하고 있어요...</p>
+      </div>
+    );
+  }
+
   const sections = parseExplanationSections(text);
 
   return (
@@ -177,6 +186,8 @@ export function Response() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallType, setPaywallType] = useState<'explanation' | 'followup'>('explanation');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [visibleFollowUpIndexes, setVisibleFollowUpIndexes] = useState<number[]>([0, 1, 2]);
+  const followUpMeasureRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -222,6 +233,79 @@ export function Response() {
   useEffect(() => {
     scrollToBottom();
   }, [currentConversation?.messages, isGeminiLoading]);
+
+  useEffect(() => {
+    const getOneLineIndexes = () => {
+      const container = followUpMeasureRef.current;
+      if (!container || currentFollowUps.length <= 1) {
+        return currentFollowUps.map((_, index) => index);
+      }
+
+      const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('button[data-follow-up-index]'));
+      if (buttons.length === 0) return currentFollowUps.map((_, index) => index);
+
+      const fitsInOneLine = (indexes: number[]) => {
+        buttons.forEach(button => {
+          const index = Number(button.dataset.followUpIndex);
+          button.style.display = indexes.includes(index) ? 'inline-flex' : 'none';
+        });
+
+        const visibleButtons = buttons.filter(button => button.style.display !== 'none');
+        if (visibleButtons.length <= 1) return true;
+
+        const firstTop = visibleButtons[0].offsetTop;
+        return visibleButtons.every(button => Math.abs(button.offsetTop - firstTop) < 2);
+      };
+
+      const allIndexes = currentFollowUps.map((_, index) => index);
+      let result = allIndexes;
+
+      if (fitsInOneLine(allIndexes)) {
+        buttons.forEach(button => {
+          button.style.display = '';
+        });
+        return result;
+      }
+
+      for (const removeIndex of allIndexes) {
+        const candidate = allIndexes.filter(index => index !== removeIndex);
+        if (fitsInOneLine(candidate)) {
+          result = candidate;
+          buttons.forEach(button => {
+            button.style.display = '';
+          });
+          return result;
+        }
+      }
+
+      const fallback: number[] = [];
+      for (const index of allIndexes) {
+        const candidate = [...fallback, index];
+        if (fitsInOneLine(candidate)) fallback.push(index);
+      }
+
+      result = fallback.length > 0 ? fallback : [0];
+      buttons.forEach(button => {
+        button.style.display = '';
+      });
+      return result;
+    };
+
+    const updateVisibleQuestions = () => {
+      if (window.innerWidth >= 640) {
+        setVisibleFollowUpIndexes(currentFollowUps.map((_, index) => index));
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        setVisibleFollowUpIndexes(getOneLineIndexes());
+      });
+    };
+
+    updateVisibleQuestions();
+    window.addEventListener('resize', updateVisibleQuestions);
+    return () => window.removeEventListener('resize', updateVisibleQuestions);
+  }, [currentFollowUps]);
 
   const askFollowUpToGemini = async (questionText: string) => {
     if (questionText.includes('AI 코치와 훈련하기')) {
@@ -270,7 +354,7 @@ export function Response() {
   return (
     <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-hidden">
       <div className="sticky top-0 z-30 w-full max-w-full">
-        <div className="h-14 bg-white border-b border-gray-200/50 px-4 flex items-center lg:hidden">
+        <div className="h-14 bg-white border-b border-gray-200/50 px-4 flex items-center">
           <MobileMenuButton onClick={() => setIsSidebarOpen(true)} />
         </div>
         <PinnedProblem
@@ -280,24 +364,25 @@ export function Response() {
         />
       </div>
 
-      <div className="flex min-w-0 flex-1">
-        <div className="hidden lg:block">
+      <div className="flex min-w-0 flex-1 items-stretch">
+        <div className="hidden self-stretch bg-white lg:block">
           <Sidebar isOpen onClose={undefined} />
         </div>
 
-        <div className="lg:hidden">
-          <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+        <div>
+          <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} forceOverlay />
         </div>
 
         {isSidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            className="fixed inset-0 bg-black/50 z-30"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
 
         <main className="flex min-w-0 flex-1 flex-col bg-[#F9F9F8]">
-          <div className="min-w-0 flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-3 py-5 sm:px-8 sm:py-8 sm:space-y-6">
+          <div className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-5 sm:px-8 sm:py-8">
+            <div className="mx-auto w-full max-w-5xl space-y-5 sm:space-y-6">
             <div className="flex justify-end">
               <div className="max-w-[88%] break-words bg-white border border-gray-200/80 rounded-2xl px-4 py-3 text-left sm:max-w-[70%] sm:px-5 sm:py-3.5">
                 <p className="text-[15px] leading-7 text-gray-900 sm:text-base">{userMessage}</p>
@@ -306,7 +391,7 @@ export function Response() {
 
             <div className="w-full min-w-0">
               <div className="min-w-0 rounded-2xl bg-[#F0F0EE] px-2 py-2 sm:px-6 sm:py-6">
-                {isInitialLoading && !mainExplanationText ? (
+                {(isInitialLoading || isGeminiLoading) && !mainExplanationText ? (
                   <div className="flex items-center gap-3 py-4">
                     <Loader2 className="w-6 h-6 text-[#5C6BC0] animate-spin" />
                     <p className="text-base font-medium text-gray-700">문제를 분석하고 있어요...</p>
@@ -346,13 +431,16 @@ export function Response() {
 
             {!isGeminiLoading && !isInitialLoading && currentFollowUps.length > 0 && (
               <div className="space-y-3">
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-2.5" ref={followUpMeasureRef}>
                   {currentFollowUps.map((question, index) => (
                     !question.includes('AI 코치와 훈련하기') && (
                       <button
                         key={`${question}-${index}`}
+                        data-follow-up-index={index}
                         onClick={() => askFollowUpToGemini(question)}
-                        className="px-4 py-2.5 border-2 border-[#5C6BC0] text-[#5C6BC0] rounded-full hover:bg-[#5C6BC0] hover:text-white transition-colors text-sm font-medium"
+                        className={`shrink-0 items-center px-4 py-2.5 border-2 border-[#5C6BC0] text-[#5C6BC0] rounded-full hover:bg-[#5C6BC0] hover:text-white transition-colors text-sm font-medium ${
+                          visibleFollowUpIndexes.includes(index) ? 'inline-flex' : 'hidden'
+                        }`}
                       >
                         {question}
                       </button>
@@ -372,6 +460,7 @@ export function Response() {
             )}
 
             <div ref={messagesEndRef} />
+            </div>
           </div>
 
           <div className="border-t border-gray-200/50 bg-[#F9F9F8] px-3 py-3 sm:px-8 sm:py-4">
