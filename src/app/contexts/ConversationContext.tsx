@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useMemo, useState, ReactNode } from 'react';
+﻿import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { GoogleGenAI } from '@google/genai';
 
 interface Message {
@@ -42,7 +42,6 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const ai = useMemo(() => new GoogleGenAI({ apiKey: geminiApiKey }), [geminiApiKey]);
 
   const addConversation = (conversation: Conversation) => {
     setConversations(prev => [conversation, ...prev.filter(c => c.id !== conversation.id)]);
@@ -66,14 +65,31 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
   ): Promise<string> => {
     if (!text.trim()) return '';
 
+    const isInitialRequest = text.includes('학년 수준:');
+
     if (!geminiApiKey) {
-      return 'Gemini API 키가 설정되지 않았습니다. .env 파일에 VITE_GEMINI_API_KEY를 추가해 주세요.';
+      const missingKeyMessage = 'Gemini API 키가 설정되지 않았습니다. Vercel Environment Variables에 VITE_GEMINI_API_KEY를 추가한 뒤 Redeploy 해 주세요.';
+      const fallbackConversation: Conversation = {
+        id: Date.now().toString(),
+        title: isInitialRequest ? '수학 분석' : text.slice(0, 20) || '추가 질문',
+        userMessage: text,
+        messages: [
+          { role: 'user', parts: [{ text: isInitialRequest ? '수학 문제 분석 요청' : text }] },
+          { role: 'model', parts: [{ text: missingKeyMessage }] },
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      setCurrentConversation(fallbackConversation);
+      upsertConversation(fallbackConversation);
+      return missingKeyMessage;
     }
 
     setIsLoading(true);
 
     try {
-      const isInitialRequest = text.includes('학년 수준:');
+      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
       if (!isInitialRequest) {
         const userMessage: Message = { role: 'user', parts: [{ text }] };
