@@ -8,7 +8,7 @@ interface PinnedProblemProps {
 }
 
 export function PinnedProblem({ problemText, problemImage, solutionImage }: PinnedProblemProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const problemImageUrl = useMemo(() => {
     if (!problemImage) return null;

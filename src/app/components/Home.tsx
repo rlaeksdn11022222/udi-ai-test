@@ -283,26 +283,26 @@ export function Home() {
 
       {isImageModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 sm:p-8"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 px-4 py-5 sm:p-8"
           onClick={handleClickOutside}
         >
-          <div ref={modalRef} className="relative w-full max-w-4xl rounded-3xl bg-white p-6 sm:p-8">
+          <div ref={modalRef} className="relative my-auto max-h-[calc(100vh-2.5rem)] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 sm:max-h-[calc(100vh-4rem)] sm:p-7">
             <button
               onClick={handleCloseModal}
-              className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-gray-100"
+              className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-gray-100 sm:right-5 sm:top-5"
               aria-label="닫기"
             >
               <X className="h-6 w-6 text-gray-600" />
             </button>
 
-            <div className="mb-6 pr-10">
-              <h2 className="mb-2 text-2xl font-bold text-gray-900">이미지 업로드</h2>
-              <p className="text-base text-gray-600">
+            <div className="mb-4 pr-10 sm:mb-5">
+              <h2 className="mb-2 text-xl font-bold text-gray-900 sm:text-2xl">이미지 업로드</h2>
+              <p className="text-sm text-gray-600 sm:text-base">
                 문제 이미지는 필수이고, 해설 이미지는 있으면 함께 올려주세요.
               </p>
             </div>
 
-            <div className="mb-6">
+            <div className="mb-5">
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 학년 선택 <span className="text-red-500">*</span>
               </label>
@@ -318,17 +318,17 @@ export function Home() {
               </select>
             </div>
 
-            <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div>
-                <label className="mb-3 block text-sm font-semibold text-gray-700">문제 이미지</label>
+            <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+              <div className="min-w-0">
+                <label className="mb-2 block text-sm font-semibold text-gray-700">문제 이미지</label>
                 <label className="block cursor-pointer">
                   <input type="file" accept="image/*" onChange={handleProblemUpload} className="hidden" />
-                  <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-[#5C6BC0]">
+                  <div className="flex h-44 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-[#5C6BC0] sm:h-64">
                     {problemPreview ? (
                       <img src={problemPreview} alt="Problem preview" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="p-6 text-center">
-                        <Upload className="mx-auto mb-3 h-12 w-12 text-gray-400" />
+                      <div className="p-5 text-center">
+                        <Upload className="mx-auto mb-2 h-9 w-9 text-gray-400 sm:h-11 sm:w-11" />
                         <p className="text-sm font-medium text-gray-600">눌러서 업로드</p>
                         <p className="mt-1 text-xs text-gray-400">PNG, JPG</p>
                       </div>
@@ -337,16 +337,16 @@ export function Home() {
                 </label>
               </div>
 
-              <div>
-                <label className="mb-3 block text-sm font-semibold text-gray-700">해설 이미지</label>
+              <div className="min-w-0">
+                <label className="mb-2 block text-sm font-semibold text-gray-700">해설 이미지</label>
                 <label className="block cursor-pointer">
                   <input type="file" accept="image/*" onChange={handleSolutionUpload} className="hidden" />
-                  <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-[#5C6BC0]">
+                  <div className="flex h-44 items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-[#5C6BC0] sm:h-64">
                     {solutionPreview ? (
                       <img src={solutionPreview} alt="Solution preview" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="p-6 text-center">
-                        <Upload className="mx-auto mb-3 h-12 w-12 text-gray-400" />
+                      <div className="p-5 text-center">
+                        <Upload className="mx-auto mb-2 h-9 w-9 text-gray-400 sm:h-11 sm:w-11" />
                         <p className="text-sm font-medium text-gray-600">있으면 업로드</p>
                         <p className="mt-1 text-xs text-gray-400">선택 사항</p>
                       </div>
@@ -359,7 +359,7 @@ export function Home() {
             <button
               onClick={handleImageAnalyze}
               disabled={!problemImage || !imageSchoolLevel}
-              className="w-full rounded-2xl bg-[#5C6BC0] px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-[#5C6BC0]/30 transition-colors hover:bg-[#4E5BAD] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+              className="w-full rounded-2xl bg-[#5C6BC0] px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#5C6BC0]/30 transition-colors hover:bg-[#4E5BAD] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none sm:py-4 sm:text-lg"
             >
               분석하기
             </button>
