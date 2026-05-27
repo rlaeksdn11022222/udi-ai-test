@@ -33,7 +33,7 @@ interface ConversationContextType {
 }
 
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
-const MODEL_NAME = 'gemini-2.5-flash';
+const MODEL_NAME = 'gemini-3.1-flash-lite';
 
 async function callGemini(contents: Message[], config?: Record<string, unknown>) {
   const response = await fetch('/api/gemini', {

@@ -145,7 +145,7 @@ async function generateTrainingSet(problem: string, explanation: string, schoolL
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
       thinkingConfig: { thinkingLevel: 'minimal' },
