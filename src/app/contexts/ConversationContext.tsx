@@ -1,5 +1,4 @@
 ﻿import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { GoogleGenAI } from '@google/genai';
 
 interface Message {
   role: 'user' | 'model';
@@ -36,6 +35,28 @@ interface ConversationContextType {
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
 const MODEL_NAME = 'gemini-3.1-flash-lite';
 
+async function callGemini(contents: Message[], config?: Record<string, unknown>) {
+  const response = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: MODEL_NAME,
+      contents,
+      config,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Gemini API request failed.');
+  }
+
+  return typeof data.text === 'string' ? data.text : '';
+}
+
 function getGeminiErrorMessage(error: unknown) {
   const rawMessage = error instanceof Error ? error.message : String(error);
 
@@ -44,11 +65,11 @@ function getGeminiErrorMessage(error: unknown) {
     rawMessage.includes('PERMISSION_DENIED') ||
     rawMessage.includes('denied access')
   ) {
-    return 'Gemini API 접근 권한이 거부되었습니다. Vercel에 넣은 VITE_GEMINI_API_KEY가 현재 Google Gemini API를 사용할 수 없는 프로젝트의 키일 가능성이 큽니다. Google AI Studio에서 새 API 키를 발급해 Vercel 환경변수에 다시 넣고 Redeploy 해 주세요.';
+    return 'Gemini API 접근 권한이 거부되었습니다. Vercel에 넣은 GEMINI_API_KEY가 현재 Google Gemini API를 사용할 수 없는 프로젝트의 키일 가능성이 큽니다. Google AI Studio에서 새 API 키를 발급해 Vercel 환경변수에 다시 넣고 Redeploy 해 주세요.';
   }
 
   if (rawMessage.includes('API Key') || rawMessage.includes('api key')) {
-    return 'Gemini API 키가 올바르지 않습니다. Vercel Environment Variables의 VITE_GEMINI_API_KEY 값을 다시 확인하고 Redeploy 해 주세요.';
+    return 'Gemini API 키가 올바르지 않습니다. Vercel Environment Variables의 GEMINI_API_KEY 값을 다시 확인하고 Redeploy 해 주세요.';
   }
 
   return '해설을 생성하는 데 실패했습니다. 잠시 후 다시 시도해 주세요.';
@@ -58,8 +79,6 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
   const addConversation = (conversation: Conversation) => {
     setConversations(prev => [conversation, ...prev.filter(c => c.id !== conversation.id)]);
@@ -85,30 +104,9 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
 
     const isInitialRequest = text.includes('학년 수준:');
 
-    if (!geminiApiKey) {
-      const missingKeyMessage = 'Gemini API 키가 설정되지 않았습니다. Vercel Environment Variables에 VITE_GEMINI_API_KEY를 추가한 뒤 Redeploy 해 주세요.';
-      const fallbackConversation: Conversation = {
-        id: Date.now().toString(),
-        title: isInitialRequest ? '수학 분석' : text.slice(0, 20) || '추가 질문',
-        userMessage: text,
-        messages: [
-          { role: 'user', parts: [{ text: isInitialRequest ? '수학 문제 분석 요청' : text }] },
-          { role: 'model', parts: [{ text: missingKeyMessage }] },
-        ],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      setCurrentConversation(fallbackConversation);
-      upsertConversation(fallbackConversation);
-      return missingKeyMessage;
-    }
-
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-
       if (!isInitialRequest) {
         const userMessage: Message = { role: 'user', parts: [{ text }] };
         const modelMessage: Message = { role: 'model', parts: [{ text: '' }] };
@@ -132,26 +130,18 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
           parts: [{ text: msg.parts[0]?.text ?? '' }],
         }));
 
-        const responseStream = await ai.models.generateContentStream({
-          model: MODEL_NAME,
-          contents: chatHistory,
-          config: {
-            thinkingConfig: { thinkingLevel: 'minimal' },
-            systemInstruction: `너는 수학 개인 코치야. 사용자의 추가 질문에 답할 때는 이전 해설을 길게 반복하지 말고, 질문과 직접 관련된 핵심만 짧고 명확하게 설명해.
+        const replyText = await callGemini(chatHistory, {
+          thinkingConfig: { thinkingLevel: 'minimal' },
+          systemInstruction: `너는 수학 개인 코치야. 사용자의 추가 질문에 답할 때는 이전 해설을 길게 반복하지 말고, 질문과 직접 관련된 핵심만 짧고 명확하게 설명해.
 규칙: 1. 답변은 최대 3~5문장. 2. 가장 중요한 개념과 이유를 먼저 말하기. 3. 쉬운 말로 설명하기. 4. 불필요한 장황한 설명 금지.`,
-          },
         });
 
-        let replyText = '';
-        for await (const chunk of responseStream) {
-          replyText += chunk.text ?? '';
-          setCurrentConversation(prev => {
-            if (!prev?.messages) return prev;
-            const newMessages = [...prev.messages];
-            newMessages[newMessages.length - 1] = { role: 'model', parts: [{ text: replyText }] };
-            return { ...prev, messages: newMessages, updatedAt: new Date() };
-          });
-        }
+        setCurrentConversation(prev => {
+          if (!prev?.messages) return prev;
+          const newMessages = [...prev.messages];
+          newMessages[newMessages.length - 1] = { role: 'model', parts: [{ text: replyText }] };
+          return { ...prev, messages: newMessages, updatedAt: new Date() };
+        });
 
         const finalConversation: Conversation = {
           ...updatedConversation,
@@ -216,28 +206,20 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
 3. 세번째 꼬리질문 내용
 `;
 
-      const responseStream = await ai.models.generateContentStream({
-        model: MODEL_NAME,
-        contents: [{ role: 'user', parts: [{ text: totalPrompt }] }],
-        config: {
-          thinkingConfig: { thinkingLevel: 'low' },
-        },
+      const totalResult = await callGemini([{ role: 'user', parts: [{ text: totalPrompt }] }], {
+        thinkingConfig: { thinkingLevel: 'low' },
       });
 
-      let totalResult = '';
-      for await (const chunk of responseStream) {
-        totalResult += chunk.text ?? '';
-        const displayText = totalResult.includes('[추천질문]')
-          ? totalResult.split('[추천질문]')[0].replace('[해설본문]', '').trim()
-          : totalResult.replace('[해설본문]', '').trim();
+      const displayText = totalResult.includes('[추천질문]')
+        ? totalResult.split('[추천질문]')[0].replace('[해설본문]', '').trim()
+        : totalResult.replace('[해설본문]', '').trim();
 
-        setCurrentConversation(prev => {
-          if (!prev?.messages) return prev;
-          const newMessages = [...prev.messages];
-          newMessages[1] = { role: 'model', parts: [{ text: displayText }] };
-          return { ...prev, messages: newMessages, updatedAt: new Date() };
-        });
-      }
+      setCurrentConversation(prev => {
+        if (!prev?.messages) return prev;
+        const newMessages = [...prev.messages];
+        newMessages[1] = { role: 'model', parts: [{ text: displayText }] };
+        return { ...prev, messages: newMessages, updatedAt: new Date() };
+      });
 
       const [rawExplanation, rawFollowUps = ''] = totalResult.split('[추천질문]');
       const explanationContent = rawExplanation.replace('[해설본문]', '').trim();

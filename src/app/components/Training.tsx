@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
-import { GoogleGenAI } from '@google/genai';
 import { AlertCircle, CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { PinnedProblem } from './PinnedProblem';
 import { Sidebar, MobileMenuButton } from './Sidebar';
@@ -94,10 +93,8 @@ function isValidTrainingSet(value: unknown): value is TrainingSet {
 }
 
 async function generateTrainingSet(problem: string, explanation: string, schoolLevel?: string): Promise<TrainingSet> {
-  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!geminiApiKey || !explanation.trim()) return fallbackTrainingSet;
+  if (!explanation.trim()) return fallbackTrainingSet;
 
-  const ai = new GoogleGenAI({ apiKey: geminiApiKey });
   const prompt = `
 너는 사용자가 해설을 제대로 이해했는지 평가하고 지도하는 개인 코치야.
 
@@ -142,16 +139,25 @@ async function generateTrainingSet(problem: string, explanation: string, schoolL
 }
 `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-flash-lite',
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    config: {
+  const response = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gemini-3.1-flash-lite',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
       thinkingConfig: { thinkingLevel: 'minimal' },
       responseMimeType: 'application/json',
-    },
+      },
+    }),
   });
 
-  const parsed = JSON.parse(stripJsonFence(response.text ?? ''));
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Training generation failed.');
+
+  const parsed = JSON.parse(stripJsonFence(data.text ?? ''));
   if (!isValidTrainingSet(parsed)) return fallbackTrainingSet;
 
   return {
