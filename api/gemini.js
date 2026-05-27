@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 
-const DEFAULT_MODEL = 'gemini-3.1-flash-lite';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return Promise.resolve(req.body);
