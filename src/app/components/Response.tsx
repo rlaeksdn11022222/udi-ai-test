@@ -275,7 +275,16 @@ export function Response() {
   // 2. 꼬리질문 요청 핸들러 (UI 이중 상태 관리 제거, 직접 전송)
   const askFollowUpToGemini = async (questionText: string) => {
     if (questionText.includes('AI 코치와 훈련하기')) {
-      navigate('/training', { state: { userMessage } });
+      navigate('/training', {
+        state: {
+          userMessage,
+          problemText: problemText || userMessage,
+          explanationText: mainExplanationText,
+          problemImage,
+          solutionImage,
+          schoolLevel,
+        },
+      });
       return;
     }
 
@@ -425,7 +434,16 @@ export function Response() {
 
                 <div className="pt-2 border-t border-gray-200/50">
                   <button
-                    onClick={() => navigate('/training', { state: { userMessage } })}
+                    onClick={() => navigate('/training', {
+                      state: {
+                        userMessage,
+                        problemText: problemText || userMessage,
+                        explanationText: mainExplanationText,
+                        problemImage,
+                        solutionImage,
+                        schoolLevel,
+                      },
+                    })}
                     className="px-4 py-2.5 border-2 border-[#5C6BC0] text-[#5C6BC0] rounded-full hover:bg-[#5C6BC0] hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5"
                   >
                     AI 코치와 훈련하기 →
