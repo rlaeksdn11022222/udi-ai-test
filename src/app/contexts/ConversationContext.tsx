@@ -36,6 +36,24 @@ interface ConversationContextType {
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
 const MODEL_NAME = 'gemini-3.1-flash-lite';
 
+function getGeminiErrorMessage(error: unknown) {
+  const rawMessage = error instanceof Error ? error.message : String(error);
+
+  if (
+    rawMessage.includes('403') ||
+    rawMessage.includes('PERMISSION_DENIED') ||
+    rawMessage.includes('denied access')
+  ) {
+    return 'Gemini API 접근 권한이 거부되었습니다. Vercel에 넣은 VITE_GEMINI_API_KEY가 현재 Google Gemini API를 사용할 수 없는 프로젝트의 키일 가능성이 큽니다. Google AI Studio에서 새 API 키를 발급해 Vercel 환경변수에 다시 넣고 Redeploy 해 주세요.';
+  }
+
+  if (rawMessage.includes('API Key') || rawMessage.includes('api key')) {
+    return 'Gemini API 키가 올바르지 않습니다. Vercel Environment Variables의 VITE_GEMINI_API_KEY 값을 다시 확인하고 Redeploy 해 주세요.';
+  }
+
+  return '해설을 생성하는 데 실패했습니다. 잠시 후 다시 시도해 주세요.';
+}
+
 export function ConversationProvider({ children }: { children: ReactNode }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
@@ -246,7 +264,38 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
       return explanationContent;
     } catch (error) {
       console.error('Gemini process error:', error);
-      return '해설을 생성하는 데 실패했습니다. 다시 시도해 주세요.';
+      const errorMessage = getGeminiErrorMessage(error);
+
+      setCurrentConversation(prev => {
+        if (!prev?.messages) return prev;
+
+        const messages = [...prev.messages];
+        let targetIndex = -1;
+
+        for (let index = messages.length - 1; index >= 0; index -= 1) {
+          if (messages[index].role === 'model') {
+            targetIndex = index;
+            break;
+          }
+        }
+
+        if (targetIndex >= 0) {
+          messages[targetIndex] = { role: 'model', parts: [{ text: errorMessage }] };
+        } else {
+          messages.push({ role: 'model', parts: [{ text: errorMessage }] });
+        }
+
+        const updatedConversation = {
+          ...prev,
+          messages,
+          updatedAt: new Date(),
+        };
+
+        upsertConversation(updatedConversation);
+        return updatedConversation;
+      });
+
+      return errorMessage;
     } finally {
       setIsLoading(false);
     }
