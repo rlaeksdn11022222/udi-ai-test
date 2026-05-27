@@ -27,11 +27,19 @@ export default async function handler(req, res) {
     return;
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
 
   if (!apiKey) {
     res.status(500).json({
       error: 'GEMINI_API_KEY is not configured on the server.',
+    });
+    return;
+  }
+
+  if (apiKey.includes('•') || /[^\x20-\x7E]/.test(apiKey)) {
+    res.status(500).json({
+      error:
+        'GEMINI_API_KEY contains invalid characters. Paste the real Google AI Studio API key, not the masked dots shown by Vercel.',
     });
     return;
   }
