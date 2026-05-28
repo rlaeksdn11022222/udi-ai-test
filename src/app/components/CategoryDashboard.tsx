@@ -127,9 +127,9 @@ export function CategoryDashboard() {
             {categories.length === 0 ? (
               <section className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center">
                 <History className="mx-auto mb-4 h-8 w-8 text-[#5C6BC0]" />
-                <h3 className="text-xl font-bold text-gray-950">아직 저장된 유형이 없어요</h3>
+                <h3 className="text-xl font-bold text-gray-950">아직 푼 문제 기록이 없어요</h3>
                 <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-gray-600">
-                  문제 해설을 받은 뒤 AI 코치와 훈련하기를 완료하면, 그 결과가 유형으로 자동 저장됩니다.
+                  문제를 풀고 AI 코치 훈련까지 완료하면, 그 기록을 바탕으로 유형과 성취도가 자동으로 쌓입니다.
                 </p>
                 <button
                   onClick={() => navigate('/')}
