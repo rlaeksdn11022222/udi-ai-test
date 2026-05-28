@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Brain, CheckCircle, Loader2, Repeat2, Target, X } from 'lucide-react';
-import { CategoryMastery, TrainingType, useCategory } from '../contexts/CategoryContext';
+import { ArrowLeft, CheckCircle, Loader2, Repeat2, X } from 'lucide-react';
+import { CategoryMastery, useCategory } from '../contexts/CategoryContext';
 import { Sidebar, MobileMenuButton } from './Sidebar';
 
 interface PracticeQuestion {
   id: number;
-  trainingType: TrainingType;
   question: string;
   options: string[];
   correctOptionIndex: number;
@@ -35,55 +34,15 @@ function normalize(text: string) {
   return text.toLowerCase().replace(/\s+/g, '').replace(/[^\p{L}\p{N}]/gu, '');
 }
 
-function getTypeLabel(type: TrainingType) {
-  if (type === 'approach') return '접근방식유형';
-  if (type === 'logic') return '논리적사고유형';
-  return '문제변형유형';
-}
-
-function getTypeIcon(type: TrainingType) {
-  if (type === 'approach') return <Target className="h-4 w-4" />;
-  if (type === 'logic') return <Brain className="h-4 w-4" />;
-  return <Repeat2 className="h-4 w-4" />;
-}
-
 function makeFallbackQuestions(category: CategoryMastery, count: number): PracticeQuestion[] {
-  const templates: PracticeQuestion[] = [
-    {
-      id: 1,
-      trainingType: 'approach',
-      question: `${category.typeLabel} 문제를 처음 봤을 때 가장 먼저 확인해야 할 것은 무엇인가요?`,
-      options: ['문제의 조건과 사용할 개념', '계산을 바로 시작하기', '답의 모양부터 추측하기'],
-      correctOptionIndex: 0,
-      correctAnswer: '문제의 조건과 사용할 개념',
-      explanation: '접근방식유형은 문제를 풀기 전에 어떤 조건을 보고 어떤 도구를 선택할지 판단하는 훈련입니다.',
-      directAnswerKeywords: ['조건', '개념', '유형', '확인'],
-    },
-    {
-      id: 2,
-      trainingType: 'logic',
-      question: `${category.subType} 풀이에서 중간 과정이 중요한 이유는 무엇인가요?`,
-      options: ['풀이 이유를 연결해야 실수를 줄일 수 있어서', '식이 길어 보이면 점수가 높아서', '공식을 많이 쓰는 것이 중요해서'],
-      correctOptionIndex: 0,
-      correctAnswer: '풀이 이유를 연결해야 실수를 줄일 수 있어서',
-      explanation: '논리적사고유형은 답만 맞히는 것이 아니라 조건, 공식, 계산 과정이 자연스럽게 이어지는지 확인합니다.',
-      directAnswerKeywords: ['이유', '과정', '연결', '논리'],
-    },
-    {
-      id: 3,
-      trainingType: 'variation',
-      question: `원래 문제 "${category.sourceProblem}"에서 숫자나 조건이 바뀌면 무엇을 유지해야 할까요?`,
-      options: ['풀이 구조와 판단 기준', '원래 답', '문제의 글자 수'],
-      correctOptionIndex: 0,
-      correctAnswer: '풀이 구조와 판단 기준',
-      explanation: '문제변형유형은 숫자가 바뀌어도 같은 개념과 풀이 구조를 적용할 수 있는지 보는 훈련입니다.',
-      directAnswerKeywords: ['구조', '기준', '개념', '풀이'],
-    },
-  ];
-
   return Array.from({ length: count }, (_, index) => ({
-    ...templates[index % templates.length],
     id: index + 1,
+    question: `원래 문제의 풀이 구조를 유지해서 ${category.typeLabel} 변형 문제를 풀어보세요. (${index + 1})\n${category.sourceProblem}`,
+    options: ['원래 해설의 핵심 개념을 먼저 적용한다', '숫자가 바뀌었으니 아무 공식이나 대입한다', '문제를 다시 읽지 않고 답만 추측한다'],
+    correctOptionIndex: 0,
+    correctAnswer: '원래 해설의 핵심 개념을 먼저 적용한다',
+    explanation: `이 유형은 원래 문제를 외우는 게 아니라 같은 풀이 구조를 새 문제에 옮기는 연습입니다.\n\n원래 해설 핵심:\n${category.sourceExplanation}`,
+    directAnswerKeywords: ['핵심', '개념', '풀이', '구조'],
   }));
 }
 
@@ -93,7 +52,6 @@ function isValidPracticeSet(value: unknown): value is GeneratedPracticeSet {
     data &&
       Array.isArray(data.questions) &&
       data.questions.every(question =>
-        ['approach', 'logic', 'variation'].includes(question.trainingType) &&
         typeof question.question === 'string' &&
         Array.isArray(question.options) &&
         question.options.length === 3 &&
@@ -109,45 +67,37 @@ function isValidPracticeSet(value: unknown): value is GeneratedPracticeSet {
 
 async function generateVariationPractice(category: CategoryMastery, count: number): Promise<GeneratedPracticeSet> {
   const prompt = `
-너는 사용자가 이미 풀었던 수학 문제를 바탕으로 유형 훈련 문제를 만드는 개인 코치야.
+너는 학생이 실제로 풀었던 수학 문제와 해설을 바탕으로 "문제변형 훈련"만 만드는 AI 코치야.
 
-입력으로 다음이 주어진다:
-- 현재 문제의 큰 유형
-- 현재 문제의 작은 유형
-- 원래 풀었던 문제
-- 원래 문제의 해설
-- 총 문제 수
+입력:
+- 유형: ${category.typeLabel}
+- 큰 유형: ${category.mainType}
+- 작은 유형: ${category.subType}
+- 학생이 풀었던 원래 문제: ${category.sourceProblem}
+- 원래 문제의 해설: ${category.sourceExplanation}
+- 총 문제 수: ${count}
 
-[입력]
-큰 유형: ${category.mainType}
-작은 유형: ${category.subType}
-정리된 문제 유형: ${category.typeLabel}
-원래 문제: ${category.sourceProblem}
-원래 해설: ${category.sourceExplanation}
-총 문제 수: ${count}
-
-[문제 생성 규칙]
-1. 원래 문제를 그대로 다시 내지 말고, 숫자/조건/표현을 바꾼 변형 문제를 만든다.
-2. 문제는 접근방식유형, 논리적사고유형, 문제변형유형이 골고루 섞이게 만든다.
-3. 접근방식유형은 "무엇을 먼저 봐야 하는가", "어떤 방법을 선택해야 하는가"를 묻는다.
-4. 논리적사고유형은 "왜 그 방법이 맞는가", "풀이 흐름에서 빠진 단계가 무엇인가"를 묻는다.
-5. 문제변형유형은 실제 변형 계산 문제를 낸다.
-6. 각 문제는 보기 3개를 제공하고, 학생이 직접 입력해도 채점할 수 있도록 핵심 키워드를 제공한다.
+규칙:
+1. 반드시 원래 문제를 그대로 내지 말고 숫자, 조건, 표현을 바꾼 변형 문제만 만든다.
+2. 접근방식 설명 문제나 논리 설명 문제는 만들지 않는다. 실제로 풀 수 있는 변형 문제만 만든다.
+3. 원래 해설에서 쓰인 핵심 개념과 풀이 구조는 유지한다.
+4. 각 문제는 보기 3개를 제공한다.
+5. 틀렸을 때 바로 이해할 수 있도록 해당 변형 문제에 대한 짧은 해설을 제공한다.
+6. 직접 입력 채점을 위해 핵심 키워드 2~4개를 제공한다.
 7. 말투는 짧고 명확하게 쓴다.
 
-반드시 아래 JSON 형식만 출력해. 마크다운, 설명문, 코드블록은 금지.
+반드시 JSON만 출력해. 마크다운, 코드블록, 설명문은 금지.
 {
   "guide": "훈련 시작 안내 문장",
   "questions": [
     {
       "id": 1,
-      "trainingType": "approach",
-      "question": "질문",
+      "question": "변형 문제",
       "options": ["보기1", "보기2", "보기3"],
       "correctOptionIndex": 0,
       "correctAnswer": "정답",
-      "explanation": "채점 후 보여줄 설명",
-      "directAnswerKeywords": ["핵심어1", "핵심어2", "핵심어3"]
+      "explanation": "이 변형 문제에 대한 해설",
+      "directAnswerKeywords": ["핵심어1", "핵심어2"]
     }
   ]
 }
@@ -167,11 +117,11 @@ async function generateVariationPractice(category: CategoryMastery, count: numbe
   });
 
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || '유형 훈련 문제 생성에 실패했습니다.');
+  if (!response.ok) throw new Error(data.error || '변형 문제 생성에 실패했습니다.');
 
   const parsed = JSON.parse(stripJsonFence(data.text ?? ''));
   if (!isValidPracticeSet(parsed)) {
-    throw new Error('유형 훈련 문제 형식이 올바르지 않습니다.');
+    throw new Error('변형 문제 형식이 올바르지 않습니다.');
   }
 
   return {
@@ -220,7 +170,7 @@ export function CategoryPractice() {
         if (isMounted) {
           setGenerationError('AI 문제 생성에 실패해서 기본 변형 훈련으로 시작합니다.');
           setPracticeSet({
-            guide: `${category.typeLabel}에서 자주 막히는 지점을 변형 문제로 확인해볼게요.`,
+            guide: `${category.typeLabel}에서 원래 풀이 구조를 변형 문제에 적용해볼게요.`,
             questions: makeFallbackQuestions(category, questionCount),
           });
         }
@@ -233,17 +183,14 @@ export function CategoryPractice() {
     return () => {
       isMounted = false;
     };
-  }, [category, questionCount]);
-
-  const questions = practiceSet?.questions ?? [];
-  const currentQuestion = questions[currentQuestionIndex];
-  const progressLabel = questionCount ? `${Math.min(currentQuestionIndex + 1, questionCount)} / ${questionCount}` : '';
+  }, [category?.id, questionCount]);
 
   if (!category) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F9F9F8] p-6">
         <div className="max-w-sm rounded-2xl border border-gray-200 bg-white p-6 text-center">
           <h1 className="text-xl font-bold text-gray-950">유형을 찾을 수 없어요</h1>
+          <p className="mt-2 text-sm text-gray-600">먼저 AI 코치 훈련을 완료해 유형을 저장해 주세요.</p>
           <button
             onClick={() => navigate('/category-dashboard')}
             className="mt-5 rounded-full bg-[#5C6BC0] px-5 py-3 font-medium text-white"
@@ -254,6 +201,10 @@ export function CategoryPractice() {
       </div>
     );
   }
+
+  const questions = practiceSet?.questions ?? [];
+  const currentQuestion = questions[currentQuestionIndex];
+  const progressLabel = questionCount ? `${Math.min(currentQuestionIndex + 1, questionCount)} / ${questionCount}` : '';
 
   const submitAnswer = (optionIndex: number | null) => {
     if (!currentQuestion || showExplanation) return;
@@ -272,7 +223,7 @@ export function CategoryPractice() {
     setIsCorrect(correct);
     setShowExplanation(true);
     if (correct) setCorrectCount(count => count + 1);
-    updateMastery(category.id, correct, currentQuestion.trainingType);
+    updateMastery(category.id, correct, 'variation');
   };
 
   const goNext = () => {
@@ -289,28 +240,35 @@ export function CategoryPractice() {
     setIsCorrect(false);
   };
 
-  const Header = (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-gray-200/50 bg-white px-4 sm:px-8">
-      <div className="flex items-center gap-3">
-        <MobileMenuButton onClick={() => setIsSidebarOpen(true)} />
-        <button
-          onClick={() => navigate('/category-dashboard')}
-          className="rounded-lg p-2 transition-colors hover:bg-gray-100"
-          aria-label="유형 목록으로 돌아가기"
-        >
-          <ArrowLeft className="h-5 w-5 text-gray-700" />
-        </button>
-        <div className="min-w-0">
-          <h1 className="truncate text-base font-bold text-gray-900 sm:text-lg">{category.typeLabel}</h1>
-        </div>
-      </div>
-      {progressLabel && <span className="text-sm font-medium text-gray-500">{progressLabel}</span>}
-    </header>
-  );
+  const goTrainCurrentProblem = () => {
+    if (!currentQuestion) return;
+
+    navigate('/training', {
+      state: {
+        userMessage: currentQuestion.question,
+        problemText: currentQuestion.question,
+        explanationText: currentQuestion.explanation,
+        schoolLevel: '중등',
+      },
+    });
+  };
 
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-[#F9F9F8]">
-      {Header}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-gray-200/50 bg-white px-4 sm:px-8">
+        <div className="flex items-center gap-3">
+          <MobileMenuButton onClick={() => setIsSidebarOpen(true)} />
+          <button
+            onClick={() => navigate('/category-dashboard')}
+            className="rounded-lg p-2 transition-colors hover:bg-gray-100"
+            aria-label="유형 목록으로 돌아가기"
+          >
+            <ArrowLeft className="h-5 w-5 text-gray-700" />
+          </button>
+          <h1 className="truncate text-base font-bold text-gray-900 sm:text-lg">{category.typeLabel}</h1>
+        </div>
+        {progressLabel && <span className="text-sm font-medium text-gray-500">{progressLabel}</span>}
+      </header>
 
       <div className="flex min-w-0 flex-1 items-stretch">
         <div className="hidden self-stretch bg-white lg:block">
@@ -331,10 +289,13 @@ export function CategoryPractice() {
             {!questionCount && (
               <>
                 <section className="rounded-2xl border border-gray-200 bg-white p-6">
-                  <p className="text-sm font-semibold text-[#5C6BC0]">유형저장결과</p>
-                  <h2 className="mt-2 text-2xl font-bold text-gray-950">{category.typeLabel}</h2>
+                  <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-[#5C6BC0]">
+                    <Repeat2 className="h-4 w-4" />
+                    문제변형유형
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-950">{category.typeLabel}</h2>
                   <p className="mt-3 text-base leading-relaxed text-gray-600">
-                    네가 풀었던 문제를 그대로 반복하지 않고, 같은 개념과 풀이 구조를 가진 변형 문제로 훈련합니다.
+                    네가 실제로 풀었던 문제와 해설을 바탕으로, 같은 유형의 변형 문제만 제공합니다.
                   </p>
                 </section>
 
@@ -381,10 +342,10 @@ export function CategoryPractice() {
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-6">
                   <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-[#5C6BC0]">
-                    {getTypeIcon(currentQuestion.trainingType)}
-                    {getTypeLabel(currentQuestion.trainingType)}
+                    <Repeat2 className="h-4 w-4" />
+                    문제변형유형
                   </div>
-                  <p className="text-lg font-bold leading-8 text-gray-950">{currentQuestion.question}</p>
+                  <p className="whitespace-pre-line text-lg font-bold leading-8 text-gray-950">{currentQuestion.question}</p>
                 </div>
 
                 <div className="space-y-3">
@@ -425,7 +386,7 @@ export function CategoryPractice() {
                         value={directAnswer}
                         onChange={(event) => setDirectAnswer(event.target.value)}
                         disabled={showExplanation}
-                        placeholder="내 풀이 방향을 직접 써보세요..."
+                        placeholder="답이나 풀이 방향을 직접 써보세요..."
                         className="h-24 w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-base focus:border-[#5C6BC0] focus:outline-none"
                       />
                       <button
@@ -460,18 +421,28 @@ export function CategoryPractice() {
                     </div>
 
                     <div className="rounded-2xl bg-[#F0F0EE] px-6 py-5">
-                      <h3 className="mb-3 text-lg font-bold text-[#5C6BC0]">해설</h3>
+                      <h3 className="mb-3 text-lg font-bold text-[#5C6BC0]">이 문제 해설</h3>
                       <p className="whitespace-pre-line text-base leading-relaxed text-gray-900">
                         {currentQuestion.explanation}
                       </p>
                     </div>
 
-                    <button
-                      onClick={goNext}
-                      className="w-full rounded-full bg-[#5C6BC0] px-6 py-3.5 text-base font-medium text-white transition-colors hover:bg-[#4E5BAD]"
-                    >
-                      {currentQuestionIndex < questions.length - 1 ? '다음 문제로' : '결과 보기'}
-                    </button>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        onClick={goNext}
+                        className="rounded-full bg-[#5C6BC0] px-6 py-3.5 text-base font-medium text-white transition-colors hover:bg-[#4E5BAD]"
+                      >
+                        {currentQuestionIndex < questions.length - 1 ? '다음 변형 문제' : '결과 보기'}
+                      </button>
+                      {!isCorrect && (
+                        <button
+                          onClick={goTrainCurrentProblem}
+                          className="rounded-full border-2 border-[#5C6BC0] px-6 py-3.5 text-base font-medium text-[#5C6BC0] transition-colors hover:bg-[#5C6BC0] hover:text-white"
+                        >
+                          AI 코치와 다시 훈련하기
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </>
@@ -480,22 +451,13 @@ export function CategoryPractice() {
             {completed && (
               <div className="space-y-5">
                 <div className="rounded-2xl border border-gray-200 bg-white p-6 text-center">
-                  <p className="text-sm font-semibold text-[#5C6BC0]">훈련 완료</p>
+                  <p className="text-sm font-semibold text-[#5C6BC0]">변형 훈련 완료</p>
                   <h2 className="mt-2 text-2xl font-bold text-gray-950">
                     {questions.length}문제 중 {correctCount}문제를 맞혔어요
                   </h2>
                   <p className="mt-3 text-base text-gray-600">
                     결과는 {category.typeLabel} 성취도에 반영되었습니다.
                   </p>
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-6">
-                  <h3 className="mb-4 text-lg font-bold text-gray-950">유형저장결과 반영 방식</h3>
-                  <div className="space-y-2 text-sm text-gray-700">
-                    <p>유형: {category.typeLabel}</p>
-                    <p>전체 성취도: 접근방식유형, 논리적사고유형, 문제변형유형 정답률의 평균</p>
-                    <p>채점: 객관식은 선택한 보기로, 직접 입력은 핵심 키워드 포함 여부로 판정</p>
-                  </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">

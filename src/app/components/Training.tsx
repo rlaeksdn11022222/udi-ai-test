@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router';
 import { AlertCircle, CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { PinnedProblem } from './PinnedProblem';
 import { Sidebar, MobileMenuButton } from './Sidebar';
+import { useCategory } from '../contexts/CategoryContext';
 
 interface TrainingQuestion {
   id: number;
@@ -185,6 +186,7 @@ export function Training() {
 
   const displayProblem = problemText || userMessage || '수학 문제';
   const explanation = explanationText || '';
+  const { recordTrainingResult } = useCategory();
 
   const [trainingSet, setTrainingSet] = useState<TrainingSet | null>(null);
   const [isGenerating, setIsGenerating] = useState(true);
@@ -199,6 +201,7 @@ export function Training() {
   const [correctCount, setCorrectCount] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [hasSavedCategoryResult, setHasSavedCategoryResult] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -206,6 +209,7 @@ export function Training() {
     async function loadTrainingSet() {
       setIsGenerating(true);
       setGenerationError('');
+      setHasSavedCategoryResult(false);
 
       try {
         const generated = await generateTrainingSet(displayProblem, explanation, schoolLevel);
@@ -230,6 +234,28 @@ export function Training() {
   const questions = trainingSet?.questions ?? [];
   const currentQuestion = questions[currentQuestionIndex];
   const uniqueMissedPoints = useMemo(() => [...new Set(allMissedPoints)], [allMissedPoints]);
+
+  useEffect(() => {
+    if (!isComplete || hasSavedCategoryResult || questions.length === 0) return;
+
+    recordTrainingResult({
+      problem: displayProblem,
+      explanation,
+      correctCount,
+      totalCount: questions.length,
+      missedPoints: uniqueMissedPoints,
+    });
+    setHasSavedCategoryResult(true);
+  }, [
+    isComplete,
+    hasSavedCategoryResult,
+    questions.length,
+    recordTrainingResult,
+    displayProblem,
+    explanation,
+    correctCount,
+    uniqueMissedPoints,
+  ]);
 
   const recordAnswer = (isCorrect: boolean, selectedIndex: number | null = null) => {
     if (!currentQuestion) return;

@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 
 export type TrainingType = 'approach' | 'logic' | 'variation';
 
@@ -24,15 +24,25 @@ export interface CategoryMastery {
   sourceProblem: string;
   sourceExplanation: string;
   weakPoints: string[];
+  updatedAt: string;
+}
+
+interface TrainingResultInput {
+  problem: string;
+  explanation: string;
+  correctCount: number;
+  totalCount: number;
+  missedPoints: string[];
 }
 
 interface CategoryContextType {
   categories: CategoryMastery[];
   updateMastery: (categoryId: string, correct: boolean, trainingType?: TrainingType) => void;
-  saveAchievementResult: (categoryId: string, result: Partial<CategoryMastery>) => void;
+  recordTrainingResult: (result: TrainingResultInput) => void;
   getCategoryMastery: (categoryId: string) => CategoryMastery | undefined;
 }
 
+const STORAGE_KEY = 'udi-category-mastery-v3';
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
 
 function clampPercent(value: number) {
@@ -43,96 +53,98 @@ function getOverallAchievement(approach: number, logic: number, variation: numbe
   return clampPercent((approach + logic + variation) / 3);
 }
 
-const initialCategories: CategoryMastery[] = [
-  {
-    id: 'quadratic-discriminant',
-    mainType: '이차방정식',
-    subType: '판별식',
-    typeLabel: '이차방정식-판별식',
-    overallAchievement: 72,
-    approachAccuracy: 80,
-    logicAccuracy: 70,
-    variationAccuracy: 66,
-    approachScores: { relevance: 84, logicalFlow: 78, specificity: 76 },
-    logicScores: { relevance: 72, logicalFlow: 70, specificity: 68 },
-    totalQuestions: 9,
-    correctAnswers: 7,
-    sourceProblem: '이차방정식 x² - 4x + 3 = 0의 판별식을 구하고 근의 개수를 판단하세요.',
-    sourceExplanation: '이차방정식 ax²+bx+c=0에서 판별식 D=b²-4ac를 계산해 D>0이면 서로 다른 두 실근, D=0이면 중근, D<0이면 실근이 없다고 판단합니다.',
-    weakPoints: ['a, b, c를 먼저 분리하기', 'D의 부호로 근의 개수 판단하기'],
-  },
-  {
-    id: 'quadratic-formula',
-    mainType: '이차방정식',
-    subType: '근의 공식',
-    typeLabel: '이차방정식-근의 공식',
-    overallAchievement: 64,
-    approachAccuracy: 68,
-    logicAccuracy: 61,
-    variationAccuracy: 63,
-    approachScores: { relevance: 70, logicalFlow: 64, specificity: 66 },
-    logicScores: { relevance: 62, logicalFlow: 58, specificity: 63 },
-    totalQuestions: 12,
-    correctAnswers: 8,
-    sourceProblem: '2x² + 5x - 3 = 0을 근의 공식으로 푸세요.',
-    sourceExplanation: '인수분해가 바로 보이지 않으면 a, b, c를 찾아 근의 공식 x=(-b±√(b²-4ac))/2a에 대입합니다. 판별식과 부호 계산을 차례대로 확인해야 합니다.',
-    weakPoints: ['공식 선택 이유 설명하기', '± 양쪽 값을 모두 계산하기', 'b의 부호 실수 줄이기'],
-  },
-  {
-    id: 'sqrt-rationalize',
-    mainType: '제곱근',
-    subType: '분모의 유리화',
-    typeLabel: '제곱근-분모의 유리화',
-    overallAchievement: 55,
-    approachAccuracy: 58,
-    logicAccuracy: 52,
-    variationAccuracy: 55,
-    approachScores: { relevance: 60, logicalFlow: 54, specificity: 58 },
-    logicScores: { relevance: 53, logicalFlow: 50, specificity: 54 },
-    totalQuestions: 7,
-    correctAnswers: 4,
-    sourceProblem: '1/√3의 분모를 유리화하세요.',
-    sourceExplanation: '분모에 제곱근이 있으면 분모와 분자에 같은 제곱근을 곱해 분모를 유리수로 만듭니다. 1/√3은 √3/3이 됩니다.',
-    weakPoints: ['분자와 분모에 같은 값을 곱하기', '분모가 유리수가 되었는지 확인하기'],
-  },
-  {
-    id: 'sequence-recursive',
-    mainType: '수열',
-    subType: '점화식',
-    typeLabel: '수열-점화식',
-    overallAchievement: 48,
-    approachAccuracy: 50,
-    logicAccuracy: 44,
-    variationAccuracy: 50,
-    approachScores: { relevance: 52, logicalFlow: 47, specificity: 50 },
-    logicScores: { relevance: 46, logicalFlow: 42, specificity: 45 },
-    totalQuestions: 6,
-    correctAnswers: 3,
-    sourceProblem: 'a₁=2, aₙ₊₁=aₙ+3일 때 a₄를 구하세요.',
-    sourceExplanation: '점화식은 앞 항으로 다음 항을 만드는 규칙입니다. a₁에서 시작해 a₂, a₃, a₄를 순서대로 구하면 됩니다.',
-    weakPoints: ['첫째항부터 차례대로 대입하기', 'n과 항 번호를 혼동하지 않기'],
-  },
-  {
-    id: 'polynomial-factorization',
-    mainType: '다항식',
-    subType: '인수분해',
-    typeLabel: '다항식-인수분해',
-    overallAchievement: 69,
-    approachAccuracy: 74,
-    logicAccuracy: 66,
-    variationAccuracy: 67,
-    approachScores: { relevance: 75, logicalFlow: 70, specificity: 72 },
-    logicScores: { relevance: 68, logicalFlow: 64, specificity: 66 },
-    totalQuestions: 10,
-    correctAnswers: 7,
-    sourceProblem: 'x² + 5x + 6을 인수분해하세요.',
-    sourceExplanation: '곱해서 6, 더해서 5가 되는 두 수 2와 3을 찾으면 x²+5x+6=(x+2)(x+3)입니다.',
-    weakPoints: ['곱과 합 조건을 동시에 확인하기', '부호까지 함께 비교하기'],
-  },
-];
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9가-힣-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function inferType(problem: string, explanation: string) {
+  const text = `${problem} ${explanation}`;
+
+  if (/판별식|D\s*=|b²|b\^2|근의\s*개수/.test(text)) {
+    return { mainType: '이차방정식', subType: '판별식' };
+  }
+  if (/근의\s*공식|x\s*=\s*\(-?b|±|플러스마이너스/.test(text)) {
+    return { mainType: '이차방정식', subType: '근의 공식' };
+  }
+  if (/인수분해|\(x|곱해서|더해서/.test(text)) {
+    return { mainType: '다항식', subType: '인수분해' };
+  }
+  if (/제곱근|루트|√|유리화/.test(text)) {
+    return { mainType: '제곱근', subType: text.includes('유리화') ? '분모의 유리화' : '제곱근 계산' };
+  }
+  if (/수열|점화식|aₙ|an|일반항/.test(text)) {
+    return { mainType: '수열', subType: text.includes('점화') ? '점화식' : '일반항' };
+  }
+  if (/일차방정식|연립방정식/.test(text)) {
+    return { mainType: '방정식', subType: text.includes('연립') ? '연립방정식' : '일차방정식' };
+  }
+
+  return { mainType: '수학', subType: '문제 해석' };
+}
+
+function makeBaseScores(correctCount: number, totalCount: number, missedPoints: string[]) {
+  const accuracy = totalCount > 0 ? clampPercent((correctCount / totalCount) * 100) : 0;
+  const missPenalty = Math.min(18, missedPoints.length * 3);
+
+  const approachAccuracy = clampPercent(accuracy - Math.round(missPenalty * 0.4));
+  const logicAccuracy = clampPercent(accuracy - Math.round(missPenalty * 0.6));
+  const variationAccuracy = accuracy;
+
+  return {
+    approachAccuracy,
+    logicAccuracy,
+    variationAccuracy,
+    approachScores: {
+      relevance: clampPercent(approachAccuracy + 4),
+      logicalFlow: clampPercent(approachAccuracy - 2),
+      specificity: clampPercent(approachAccuracy - 4),
+    },
+    logicScores: {
+      relevance: clampPercent(logicAccuracy + 2),
+      logicalFlow: clampPercent(logicAccuracy),
+      specificity: clampPercent(logicAccuracy - 3),
+    },
+  };
+}
+
+function mergePercent(oldValue: number, oldTotal: number, newValue: number, newTotal: number) {
+  const total = Math.max(oldTotal + newTotal, 1);
+  return clampPercent(((oldValue * oldTotal) + (newValue * newTotal)) / total);
+}
+
+function isCategoryList(value: unknown): value is CategoryMastery[] {
+  return Array.isArray(value) && value.every(item => {
+    const category = item as CategoryMastery;
+    return typeof category.id === 'string' &&
+      typeof category.typeLabel === 'string' &&
+      typeof category.overallAchievement === 'number';
+  });
+}
+
+function loadInitialCategories() {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return isCategoryList(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 export function CategoryProvider({ children }: { children: ReactNode }) {
-  const [categories, setCategories] = useState<CategoryMastery[]>(initialCategories);
+  const [categories, setCategories] = useState<CategoryMastery[]>(loadInitialCategories);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(categories));
+  }, [categories]);
 
   const updateMastery = (categoryId: string, correct: boolean, trainingType: TrainingType = 'variation') => {
     setCategories(prev => prev.map(category => {
@@ -140,7 +152,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
 
       const totalQuestions = category.totalQuestions + 1;
       const correctAnswers = category.correctAnswers + (correct ? 1 : 0);
-      const delta = correct ? 4 : -3;
+      const delta = correct ? 4 : -5;
       const nextApproach = trainingType === 'approach'
         ? clampPercent(category.approachAccuracy + delta)
         : category.approachAccuracy;
@@ -159,32 +171,85 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
         logicAccuracy: nextLogic,
         variationAccuracy: nextVariation,
         overallAchievement: getOverallAchievement(nextApproach, nextLogic, nextVariation),
+        updatedAt: new Date().toISOString(),
       };
     }));
   };
 
-  const saveAchievementResult = (categoryId: string, result: Partial<CategoryMastery>) => {
-    setCategories(prev => prev.map(category => {
-      if (category.id !== categoryId) return category;
+  const recordTrainingResult = (result: TrainingResultInput) => {
+    const { mainType, subType } = inferType(result.problem, result.explanation);
+    const typeLabel = `${mainType}-${subType}`;
+    const id = slugify(typeLabel);
+    const scores = makeBaseScores(result.correctCount, result.totalCount, result.missedPoints);
+    const now = new Date().toISOString();
 
-      const approachAccuracy = clampPercent(result.approachAccuracy ?? category.approachAccuracy);
-      const logicAccuracy = clampPercent(result.logicAccuracy ?? category.logicAccuracy);
-      const variationAccuracy = clampPercent(result.variationAccuracy ?? category.variationAccuracy);
-      const mainType = result.mainType ?? category.mainType;
-      const subType = result.subType ?? category.subType;
+    setCategories(prev => {
+      const existing = prev.find(category => category.id === id);
 
-      return {
-        ...category,
-        ...result,
-        mainType,
-        subType,
-        typeLabel: `${mainType}-${subType}`,
-        approachAccuracy,
-        logicAccuracy,
-        variationAccuracy,
-        overallAchievement: getOverallAchievement(approachAccuracy, logicAccuracy, variationAccuracy),
-      };
-    }));
+      if (!existing) {
+        const newCategory: CategoryMastery = {
+          id,
+          mainType,
+          subType,
+          typeLabel,
+          overallAchievement: getOverallAchievement(
+            scores.approachAccuracy,
+            scores.logicAccuracy,
+            scores.variationAccuracy,
+          ),
+          ...scores,
+          totalQuestions: result.totalCount,
+          correctAnswers: result.correctCount,
+          sourceProblem: result.problem,
+          sourceExplanation: result.explanation,
+          weakPoints: [...new Set(result.missedPoints)].slice(0, 6),
+          updatedAt: now,
+        };
+
+        return [newCategory, ...prev];
+      }
+
+      return prev.map(category => {
+        if (category.id !== id) return category;
+
+        const totalQuestions = category.totalQuestions + result.totalCount;
+        const correctAnswers = category.correctAnswers + result.correctCount;
+        const approachAccuracy = mergePercent(
+          category.approachAccuracy,
+          category.totalQuestions,
+          scores.approachAccuracy,
+          result.totalCount,
+        );
+        const logicAccuracy = mergePercent(
+          category.logicAccuracy,
+          category.totalQuestions,
+          scores.logicAccuracy,
+          result.totalCount,
+        );
+        const variationAccuracy = mergePercent(
+          category.variationAccuracy,
+          category.totalQuestions,
+          scores.variationAccuracy,
+          result.totalCount,
+        );
+
+        return {
+          ...category,
+          totalQuestions,
+          correctAnswers,
+          approachAccuracy,
+          logicAccuracy,
+          variationAccuracy,
+          approachScores: scores.approachScores,
+          logicScores: scores.logicScores,
+          overallAchievement: getOverallAchievement(approachAccuracy, logicAccuracy, variationAccuracy),
+          sourceProblem: result.problem || category.sourceProblem,
+          sourceExplanation: result.explanation || category.sourceExplanation,
+          weakPoints: [...new Set([...result.missedPoints, ...category.weakPoints])].slice(0, 6),
+          updatedAt: now,
+        };
+      });
+    });
   };
 
   const getCategoryMastery = (categoryId: string) => {
@@ -194,7 +259,7 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     categories,
     updateMastery,
-    saveAchievementResult,
+    recordTrainingResult,
     getCategoryMastery,
   }), [categories]);
 
